@@ -1,0 +1,6 @@
+# Ignore Bazel output
+bazel-*/*
+bazel-bin
+bazel-out
+bazel-advent
+bazel-testlogs
