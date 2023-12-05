@@ -24,3 +24,12 @@ java_binary(
         ":puzzle_lib",
     ],
 )
+
+java_binary(
+    name = "p5_v2T",
+    data = glob(["*.txt"]),
+    main_class = "dev.advent.Puzzlev2T",
+    runtime_deps = [
+        ":puzzle_lib",
+    ],
+)

@@ -8,12 +8,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class Puzzle {
+/**
+ * Jingle bells, jingle bells,
+ * Brute force all the way!
+ */
+public class Puzzlev2T {
   private static class RangeMap {
     private Map<Long, Long> sourceToDestMap = new HashMap<>();
     private Map<Long, Long> sourceToRangeMap = new HashMap<>();
-    
+   
     public void put(Long source, Long dest, Long range) {
       sourceToDestMap.put(source, dest);
       sourceToRangeMap.put(source, range);
@@ -21,7 +29,7 @@ public class Puzzle {
     
     public Long get(Long source) {
       for (long key : sourceToDestMap.keySet()) {
-        if (key <= source && source <= key + sourceToRangeMap.get(key)) {
+        if (key <= source && source < key + sourceToRangeMap.get(key)) {
           return sourceToDestMap.get(key) + (source - key);
         }
       }
@@ -54,7 +62,7 @@ public class Puzzle {
     
     Pattern seedsPattern = Pattern.compile("^seeds: ([\\d\\s]+)$");
     
-    List<Long> seeds = new ArrayList<>();
+    Map<Long, Long> seedToRangeMap = new HashMap<>();
     RangeMap seedToSoilMap = new RangeMap();
     RangeMap soilToFertilizerMap = new RangeMap();
     RangeMap fertilizerToWaterMap = new RangeMap();
@@ -69,9 +77,12 @@ public class Puzzle {
         Matcher m = seedsPattern.matcher(line);
         m.find();
         String[] seedValues = m.group(1).trim().split(" ");
-        for (String seedValue : seedValues) {
+        
+        for (int j = 0; j < seedValues.length; j += 2) {
+          String seedValue = seedValues[j];
           if (seedValue.trim().isEmpty()) continue;
-          seeds.add(Long.parseLong(seedValue.trim()));
+          String range = seedValues[j + 1];
+          seedToRangeMap.put(Long.parseLong(seedValue), Long.parseLong(range));
         }
         i++;
       } else if (line.indexOf("seed-to-soil map:") >= 0) {
@@ -100,19 +111,48 @@ public class Puzzle {
       }
     }
     
-    Long minLocation = Long.MAX_VALUE;
-    for (Long seed : seeds) {
-      long soil = seedToSoilMap.get(seed);
-      long fertilizer = soilToFertilizerMap.get(soil);
-      long water = fertilizerToWaterMap.get(fertilizer);
-      long light = waterToLightMap.get(water);
-      long temp = lightToTemperatureMap.get(light);
-      long humidity = temperatureToHumidityMap.get(temp);
-      long location = humidityToLocationMap.get(humidity);
-      if (location < minLocation) {
-        minLocation = location;
+    ExecutorService executorService = Executors.newFixedThreadPool(30);
+    List<Future<Long>> futures = new ArrayList<>();
+    for (Long seedBase : seedToRangeMap.keySet()) {
+      final long seedBaseFinal = seedBase;
+      final long range = seedToRangeMap.get(seedBase);
+      for (int j = 0; j < Math.ceil((double)range / 10000000); j++) {
+        final long start = j * 10000000;
+        final long end = Math.min((j + 1) * 10000000, range);
+        futures.add(executorService.submit(new Callable<Long>() {
+          @Override
+          public Long call() {
+            Long minLocation = Long.MAX_VALUE;
+            for (long i = start; i < end; i++) {
+              long seed = seedBaseFinal + i;
+              long soil = seedToSoilMap.get(seed);
+              long fertilizer = soilToFertilizerMap.get(soil);
+              long water = fertilizerToWaterMap.get(fertilizer);
+              long light = waterToLightMap.get(water);
+              long temp = lightToTemperatureMap.get(light);
+              long humidity = temperatureToHumidityMap.get(temp);
+              long location = humidityToLocationMap.get(humidity);
+              if (location < minLocation) {
+                minLocation = location;
+              }
+            }
+            System.out.println(String.format("Done %d-%d of %d for seed %d", start, end, range, seedBaseFinal));
+            return minLocation;
+          }
+        }));
       }
-      //System.out.println(location);
+    }
+      
+    Long minLocation = Long.MAX_VALUE;
+    for (Future<Long> future : futures) {
+      try {
+        Long location = future.get();
+        if (location < minLocation) {
+          minLocation = location;
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
     }
     
     System.out.println("minLocation is " + minLocation);
