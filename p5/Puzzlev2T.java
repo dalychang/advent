@@ -1,5 +1,6 @@
 package dev.advent;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,6 +60,10 @@ public class Puzzlev2T {
   public static void main(String[] args) throws Exception {
     final List<String> lines = Helper.loadFile("dev_advent/p5/input.txt");
     lines.add("");
+    
+    Clock clock = Clock.systemUTC();
+    
+    long startTime = clock.millis();
     
     Pattern seedsPattern = Pattern.compile("^seeds: ([\\d\\s]+)$");
     
@@ -156,5 +161,9 @@ public class Puzzlev2T {
     }
     
     System.out.println("minLocation is " + minLocation);
+    
+    long endTime = clock.millis();
+    
+    System.out.println("time taken " + (endTime - startTime) + "ms");
   }
 }

@@ -1,5 +1,6 @@
 package dev.advent;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -70,6 +71,10 @@ public class Puzzlev2 {
   public static void main(String[] args) throws Exception {
     final List<String> lines = Helper.loadFile("dev_advent/p6/input2.txt");
     
+    Clock clock = Clock.systemUTC();
+    
+    long startTime = clock.millis();
+    
     List<Integer> times = new ArrayList<>();
     List<Integer> distances = new ArrayList<>();
     
@@ -81,5 +86,9 @@ public class Puzzlev2 {
     
     long total = findWays(time, distance);
     System.out.println("total is " + total);
+    
+    long endTime = clock.millis();
+    
+    System.out.println("time taken " + (endTime - startTime) + "ms");
   }
 }
