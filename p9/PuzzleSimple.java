@@ -25,7 +25,7 @@ public class PuzzleSimple {
   }
   
   public static void main(String[] args) throws Exception {
-    final List<String> lines = Helper.loadFile("dev_advent/p9/input.txt");
+    final List<String> lines = Helper.loadFile("dev_advent/p9/input2.txt");
     Clock clock = Clock.systemUTC();
     long startTime = clock.millis();
     
