@@ -24,3 +24,21 @@ java_binary(
         ":puzzle_lib",
     ],
 )
+
+java_binary(
+    name = "p9_simple",
+    data = glob(["*.txt"]),
+    main_class = "dev.advent.PuzzleSimple",
+    runtime_deps = [
+        ":puzzle_lib",
+    ],
+)
+
+java_binary(
+    name = "p9_simple_v2",
+    data = glob(["*.txt"]),
+    main_class = "dev.advent.PuzzleSimplev2",
+    runtime_deps = [
+        ":puzzle_lib",
+    ],
+)
