@@ -152,7 +152,7 @@ public class Puzzlev3 {
   }
     
   public static void main(String[] args) throws Exception {
-    final List<String> lines = Helper.loadFile("dev_advent2/p12/input2.txt");
+    final List<String> lines = Helper.loadFile("dev_advent/p12/input2.txt");
     Clock clock = Clock.systemUTC();
     long startTime = clock.millis();
     
@@ -175,7 +175,7 @@ public class Puzzlev3 {
       groupingsList.add(grouping);
     }
     
-    ExecutorService executorService = Executors.newFixedThreadPool(26);
+    ExecutorService executorService = Executors.newFixedThreadPool(30);
     List<Future<Long>> futures = new ArrayList<>();
     
     for (int i = 0; i < springsList.size(); i++) {
