@@ -1,5 +1,6 @@
 package dev.advent;
 
+import com.google.common.base.Joiner;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,28 +25,46 @@ public class Puzzlev2 {
     return total;
   }
   
-  private static long calculatePermutations(String springs, List<Integer> groupings) {
+  private static String makeKey(String springs, List<Integer> groupings) {
+    return springs + " " +  Joiner.on(',').join(groupings);
+  }
+  
+  private static long calculatePermutations(Map<String, Long> answerCache, String springs, List<Integer> groupings) {
+    final String key = makeKey(springs, groupings);
+    if (answerCache.containsKey(key)) {
+      return answerCache.get(key);
+    }
     //System.out.println(springs + " " + groupings);
     
     if (groupings.isEmpty()) {
       for (int i = 0; i < springs.length(); i++) {
         if (springs.charAt(i) == '#') {
           //System.out.println("\t e1 " + 0);
+          answerCache.put(key, 0L);
           return 0;
         }
       }
       //System.out.println("\t e2 " + 1);
+      answerCache.put(key, 1L);
       return 1;
     }
     
     if (springs.length() < sumList(groupings) + groupings.size() - 1) {
       //System.out.println("\t e3 " + 0);
+      answerCache.put(key, 0L);
       return 0;
     }
 
-    if (springs.isEmpty()) return 0;
+    if (springs.isEmpty()) {
+      answerCache.put(key, 0L);
+      return 0;
+    }
+
     int groupSize = groupings.get(0);
-    if (springs.length() < groupSize) return 0;
+    if (springs.length() < groupSize) {
+      answerCache.put(key, 0L);
+      return 0;
+    }
     
     boolean cutOk = true;
     for (int i = 0; i < groupSize; i++) {
@@ -62,7 +81,7 @@ public class Puzzlev2 {
         if (springs.charAt(groupSize) != '#') {
           String newSprings = springs.length() >= groupSize + 1 ? springs.substring(groupSize + 1) : "";
           List<Integer> newGroupings = groupings.size() > 1 ? groupings.subList(1, groupings.size()) : List.of();
-          total += calculatePermutations(newSprings, newGroupings);
+          total += calculatePermutations(answerCache, newSprings, newGroupings);
         }
       } else {
         total += 1;
@@ -71,10 +90,11 @@ public class Puzzlev2 {
     
     if (springs.charAt(0) != '#') {
       String newSprings = springs.length() > 1 ? springs.substring(1) : "";
-      total += calculatePermutations(newSprings, groupings);
+      total += calculatePermutations(answerCache, newSprings, groupings);
     }
     
     //System.out.println("\t r " + total);
+    answerCache.put(key, total);
     return total;
   }
     
@@ -110,8 +130,11 @@ public class Puzzlev2 {
       futures.add(executorService.submit(new Callable<Long>() {
         @Override
         public Long call() {
-          System.out.println((index + 1) + "/" + springsList.size());
-          return calculatePermutations(springsList.get(index), groupingsList.get(index));
+          System.out.println("Start " + (index + 1) + "/" + springsList.size());
+          Map<String, Long> answerCache = new HashMap<>();
+          Long answer = calculatePermutations(answerCache, springsList.get(index), groupingsList.get(index));
+          System.out.println("Finish " + (index + 1) + "/" + springsList.size());
+          return answer;
         }
       }));
     }
