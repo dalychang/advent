@@ -33,3 +33,12 @@ java_binary(
         ":puzzle_lib",
     ],
 )
+
+java_binary(
+    name = "p12_v4",
+    data = glob(["*.txt"]),
+    main_class = "dev.advent.Puzzlev4",
+    runtime_deps = [
+        ":puzzle_lib",
+    ],
+)
