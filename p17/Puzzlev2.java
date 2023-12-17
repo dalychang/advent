@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Puzzle {
+public class Puzzlev2 {
   public static enum Direction {
     NORTH(0, -1),
     EAST(1, 0),
@@ -43,7 +43,7 @@ public class Puzzle {
           return WEST;
         case WEST:
         default:
-          return EAST;
+          return STOPPED;
       }
     }
   };
@@ -52,11 +52,11 @@ public class Puzzle {
     
   }
   
-  public record DirectionTuple(Direction d1, Direction d2, Direction d3) {}
+  public record DirectionKey(Direction direction, int distance) {}
   
   public static class Path implements Comparable<Path> {
-    LinkedList<Direction> lastDirections = new LinkedList<>(List.of(Direction.STOPPED, Direction.STOPPED, Direction.STOPPED));
-    List<Position> positionsVisited = new ArrayList<>();
+    DirectionKey directionKey = new DirectionKey(Direction.STOPPED, 0);
+    Set<Position> positionsVisited = new HashSet<>();
     int heatLoss = 0;
     Position currentPosition;
     Position targetPosition;
@@ -69,9 +69,8 @@ public class Puzzle {
     
     public Path copy() {
       Path path = new Path(currentPosition, targetPosition);
-      path.lastDirections = new LinkedList<>();
-      path.lastDirections.addAll(this.lastDirections);
-      path.positionsVisited = new ArrayList<>(this.positionsVisited);
+      path.directionKey = this.directionKey;
+      path.positionsVisited.addAll(this.positionsVisited);
       path.heatLoss = this.heatLoss;
       return path;
     }
@@ -81,10 +80,12 @@ public class Puzzle {
     }
     
     public boolean move(Integer[][] losses, Direction direction) {
-      lastDirections.addFirst(direction);
-      if (lastDirections.size() > 3) {
-        lastDirections.removeLast();
+      if (directionKey.direction() == direction) {
+        directionKey = new DirectionKey(direction, directionKey.distance() + 1);
+      } else {
+        directionKey = new DirectionKey(direction, 1);
       }
+
       currentPosition = new Position(currentPosition.x + direction.dx, currentPosition.y + direction.dy);
       if (currentPosition.x < 0 || currentPosition.x >= losses[0].length) return false;
       if (currentPosition.y < 0 || currentPosition.y >= losses.length) return false;
@@ -111,39 +112,30 @@ public class Puzzle {
     }
   }
   
-  public static boolean isDirectionValid(LinkedList<Direction> lastDirections, Direction nextDirection) {
-    if (lastDirections.isEmpty()) {
-      return true;
+  public static boolean isDirectionValid(DirectionKey directionKey, Direction nextDirection) {
+    if (directionKey.direction() == nextDirection) {
+      return directionKey.distance() < 10;
     }
     
-    boolean goingBackwards = lastDirections.getFirst().reverse() == nextDirection;
-    if (lastDirections.size() < 3 && !goingBackwards) return true;
-    
-    boolean allSame = true;
-    Direction lastDirection = lastDirections.getFirst();
-    for (Direction direction : lastDirections) {
-      if (direction != lastDirection) {
-        allSame = false;
-      }
-    }
-    
-    return (nextDirection != lastDirection || !allSame) && !goingBackwards;
+    boolean goingBackwards = directionKey.direction().reverse() == nextDirection;
+    return (directionKey.distance() >= 4 && !goingBackwards) || directionKey.direction() == Direction.STOPPED;
   }
   
-  public static long calculate(Integer[][] losses, Map<DirectionTuple, Integer[][]> bestLosses, Path startingPath, Integer[] minX, Integer[] minY) {
-    //PriorityQueue<Path> completedPaths = new PriorityQueue<>();
+  public static long calculate(Integer[][] losses, Map<DirectionKey, Integer[][]> bestLosses, Path startingPath, Integer[] minX, Integer[] minY) {
     PriorityQueue<Path> paths = new PriorityQueue<>((p1, p2) -> -p1.approxDistance(p2));
     //PriorityQueue<Path> paths = new PriorityQueue<>();
     paths.add(startingPath);
     
     // Seed a path;
-    Path seedPath = startingPath.copy();
+  /*  Path seedPath = startingPath.copy();
     for (int i = 1; i < losses.length; i++) {
+      for (int j = 0; j < Math.min(8, i - 8); j++)
       {
         seedPath.move(losses, Direction.EAST);
         DirectionTuple dt = new DirectionTuple(seedPath.lastDirections.get(0), seedPath.lastDirections.get(1), seedPath.lastDirections.get(2));
         bestLosses.get(dt)[seedPath.currentPosition.y][seedPath.currentPosition.x] = seedPath.heatLoss;
       }
+      for (int j = 0; j < Math.min(8, i - 8); j++)
       {
         DirectionTuple dt = new DirectionTuple(seedPath.lastDirections.get(0), seedPath.lastDirections.get(1), seedPath.lastDirections.get(2));
         seedPath.move(losses, Direction.SOUTH);
@@ -152,42 +144,42 @@ public class Puzzle {
     }
     if (!seedPath.isDone()) {
       throw new RuntimeException("Bad seed path.");
-    }
-    Path bestCompletedPath = seedPath;
-    //completedPaths.add(seedPath);
-    System.out.println("Seeded heatLoss = " + seedPath.heatLoss);
+    }*/
+    Path bestCompletedPath = null;//seedPath;
+    //System.out.println("Seeded heatLoss = " + seedPath.heatLoss);
     
     int iter = 0;
     while (!paths.isEmpty()) {
       iter++;
       Path path = paths.poll();
-      int bestHeatLossSoFar = bestCompletedPath.heatLoss;
+      int bestHeatLossSoFar = bestCompletedPath == null ? Integer.MAX_VALUE : bestCompletedPath.heatLoss;
       if (iter % 1000000 == 0)
-        //System.out.println("paths=" + paths.size() + " completed=" + completedPaths.size() + " best=" + bestHeatLossSoFar);
         System.out.println("paths=" + paths.size() + " best=" + bestHeatLossSoFar);
       if (path.heatLoss > bestHeatLossSoFar) {
         continue;
       }
       // Optimization.
-      if (path.heatLoss + minX[path.currentPosition.x] + minY[path.currentPosition.y] > bestHeatLossSoFar) {
+    /*  if (path.heatLoss + minX[path.currentPosition.x] + minY[path.currentPosition.y] > bestHeatLossSoFar) {
         continue;
-      }
+      }*/
 
       if (path.isDone()) {
-        if (path.heatLoss < bestCompletedPath.heatLoss) {
+        if (path.directionKey.distance() < 4) continue;
+
+        if (bestCompletedPath == null || path.heatLoss < bestCompletedPath.heatLoss) {
           bestCompletedPath = path;
         }
-        //completedPaths.add(path);
         continue;
       }
 
       for (Direction direction : Direction.values()) {
-        if (isDirectionValid(path.lastDirections, direction)) {
+        if (direction == Direction.STOPPED) continue;
+        //System.out.println(path.directionKey + " " + direction);
+        if (isDirectionValid(path.directionKey, direction)) {
           Path newPath = path.copy();
           if (newPath.move(losses, direction)) {
-            DirectionTuple dt = new DirectionTuple(newPath.lastDirections.get(0), newPath.lastDirections.get(1), newPath.lastDirections.get(2));
-            if (newPath.heatLoss < bestLosses.get(dt)[newPath.currentPosition.y][newPath.currentPosition.x]) {
-              bestLosses.get(dt)[newPath.currentPosition.y][newPath.currentPosition.x] = newPath.heatLoss;
+            if (newPath.heatLoss < bestLosses.get(newPath.directionKey)[newPath.currentPosition.y][newPath.currentPosition.x]) {
+              bestLosses.get(newPath.directionKey)[newPath.currentPosition.y][newPath.currentPosition.x] = newPath.heatLoss;
               paths.add(newPath);
             }
             //if (iter % 100000 == 0)
@@ -206,7 +198,7 @@ public class Puzzle {
     long startTime = clock.millis();
     
     Integer[][] losses = new Integer[lines.size()][lines.get(0).length()];
-    Map<DirectionTuple, Integer[][]> bestLosses = new HashMap<>();
+    Map<DirectionKey, Integer[][]> bestLosses = new HashMap<>();
     Integer[] minX = new Integer[lines.get(0).length()];
     Integer[] minY = new Integer[lines.size()];
     for (int i = 0; i < lines.size(); i++) {
@@ -215,19 +207,19 @@ public class Puzzle {
         losses[i][j] = Integer.parseInt(String.valueOf(line.charAt(j)));
       }
     }
-    for (Direction d1 : Direction.values()) {
-      if (d1 == Direction.STOPPED) continue;
-      for (Direction d2 : Direction.values()) {
-        if (d1 == Direction.STOPPED && d2 == Direction.STOPPED) continue;
-        for (Direction d3 : Direction.values()) {
-          Integer[][] bestLossesArray = new Integer[lines.size()][lines.get(0).length()];
-          for (int i = 0; i < lines.size(); i++) {
-            for (int j = 0; j < lines.get(0).length(); j++) {
-              bestLossesArray[i][j] = Integer.MAX_VALUE;
-            }
+    for (Direction direction : Direction.values()) {
+      if (direction == Direction.STOPPED) {
+        continue;
+      }
+      for (int k = 1; k <= 10; k++) {
+        DirectionKey dk = new DirectionKey(direction, k);
+        Integer[][] bestLossesArray = new Integer[lines.size()][lines.get(0).length()];
+        for (int i = 0; i < lines.size(); i++) {
+          for (int j = 0; j < lines.get(0).length(); j++) {
+            bestLossesArray[i][j] = Integer.MAX_VALUE;
           }
-          bestLosses.put(new DirectionTuple(d1, d2, d3), bestLossesArray);
         }
+        bestLosses.put(dk, bestLossesArray);
       }
     }
     
