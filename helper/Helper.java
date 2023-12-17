@@ -36,4 +36,11 @@ public class Helper {
     }
     System.out.println("");    
   }
+  
+  public static void printLines(List<String> lines) {
+    for (String line : lines) {
+      System.out.println(line);
+    }
+    System.out.println("");    
+  }
 }
