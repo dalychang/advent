@@ -22,4 +22,18 @@ public class Helper {
       throw new RuntimeException(e);
     }
   }
+  
+  public static void printBitmap(boolean[][] bitmap, char yesChar, char noChar) {
+    for (int i = 0; i < bitmap.length; i++) {
+      for (int j = 0; j < bitmap[0].length; j++) {
+        if (bitmap[i][j]) {
+          System.out.print(yesChar);
+        } else {
+          System.out.print(noChar);
+        }
+      }
+      System.out.println("");
+    }
+    System.out.println("");    
+  }
 }
