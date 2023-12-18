@@ -70,7 +70,7 @@ public class Puzzlev2 {
   
   public record Instruction(Direction direction, long meters) {}
   public record Position(long x, long y) {}
-  public record Point(long x, long y, Instruction instruction, Bend bend) {}
+  public record Point(long x, long y, Instruction instruction, Bend bendBefore, Bend bendAfter) {}
 
   public static class GrowingGrid {
     List<Point> points = new ArrayList<>();
@@ -114,13 +114,20 @@ public class Puzzlev2 {
       long x = currentPosition.x() + instruction.direction().dx * instruction.meters();
       long y = currentPosition.y() + instruction.direction().dy * instruction.meters();
       Bend bend = calculateBend(previousPoint == null ? null : previousPoint.instruction().direction(), instruction.direction());
-      previousPoint = new Point(currentPosition.x(), currentPosition.y(), instruction, bend);
+      
+      if (previousPoint != null) {
+        Point lastPoint = points.get(points.size() - 1);
+        Point updatedPoint = new Point(lastPoint.x(), lastPoint.y(), lastPoint.instruction(), lastPoint.bendBefore(), bend);
+        points.set(points.size() - 1, updatedPoint);
+      }
+      
+      previousPoint = new Point(currentPosition.x(), currentPosition.y(), instruction, bend, Bend.UNKNOWN);
       points.add(previousPoint);
       currentPosition = new Position(x, y);
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
-      if (x > maxY) maxY = y;
+      if (y > maxY) maxY = y;
     }
     
     public void finalize() {
@@ -130,8 +137,10 @@ public class Puzzlev2 {
       }
       Point startPoint = points.get(0);
       Bend bend = calculateBend(previousPoint.instruction().direction(), startPoint.instruction.direction());
-      Point point = new Point(startPoint.x(), startPoint.y(), startPoint.instruction(), bend);
+      Point point = new Point(startPoint.x(), startPoint.y(), startPoint.instruction(), bend, startPoint.bendAfter());
       points.set(0, point);
+      Point lastPoint = new Point(previousPoint.x(), previousPoint.y(), previousPoint.instruction(), previousPoint.bendBefore(), bend);
+      points.set(points.size() - 1, lastPoint);
     }
     
     private boolean inBetween(long p1, long p2, long value) {
@@ -145,30 +154,17 @@ public class Puzzlev2 {
       for (Point point : points) {
         if ((point.instruction().direction().isHorizontal() && point.y() == y)
             || (point.instruction().direction().isVertical() && inBetween(point.y(), point.y() + point.instruction().direction().dy * point.instruction().meters(), y))) {
-          relevantPoints.add(point);
+          if (point.instruction().direction() == Direction.LEFT) {
+            // Convert to right.
+            Instruction newInstruction = new Instruction(point.instruction().direction().reverse(), point.instruction().meters());
+            Point updatedPoint = new Point(point.x() - point.instruction().meters(), point.y(), newInstruction, point.bendAfter(), point.bendBefore());
+            relevantPoints.add(updatedPoint);
+          } else {
+            relevantPoints.add(point);
+          }
         }
       }
       return relevantPoints.stream().sorted(Comparator.comparingLong(Point::x)).toList();
-    }
-    
-    public Integer get(long x, long y) {
-      for (Point point : points) {
-        if (x == point.x() && y == point.y()) {
-          return point.bend().value;
-        }
-      }
-      for (Point point : points) {
-        if (point.instruction().direction().isVertical()) {
-          if (x == point.x() && inBetween(point.y(), point.y() + point.instruction().direction().dy * point.instruction().meters(), y)) {
-            return 2;
-          }
-        } else if (point.instruction().direction().isHorizontal()) {
-          if (y == point.y() && inBetween(point.x(), point.x() + point.instruction().direction().dx * point.instruction().meters(), x)) {
-            return 0;
-          }
-        }
-      }
-      return null;
     }
     
     public long getMinX() {
@@ -220,7 +216,7 @@ public class Puzzlev2 {
   }
     
   public static void main(String[] args) throws Exception {
-    final List<String> lines = Helper.loadFile("dev_advent/p18/input.txt");
+    final List<String> lines = Helper.loadFile("dev_advent/p18/input2.txt");
     Clock clock = Clock.systemUTC();
     long startTime = clock.millis();
     
@@ -235,7 +231,7 @@ public class Puzzlev2 {
       int meters = Integer.parseInt(m.group(3), 16);
       instructions.add(new Instruction(direction, meters));
     }
-    
+
     for (Instruction instruction : instructions) {
       grid.add(instruction);
     }
@@ -246,44 +242,36 @@ public class Puzzlev2 {
     
     System.out.println("Calculating");
     long insideSpots = 0;
+    long dugTotal = 0;
     for (long i = grid.getMinY(); i <= grid.getMaxY(); i++) {
       int edges = 0;
       int dug = 0;
       List<Point> points = grid.getRelevantPoints(i);
-      long currentX = 0;
+      long currentX = grid.getMinY();
       for (Point point : points) {
+        if (i % 100000 == 0) {
+          System.out.println((i - grid.getMinY()) + " / " + (grid.getMaxY() - grid.getMinY()));
+        }
         if (edges == 2 && point.x() > currentX) {
           insideSpots += (point.x() - currentX); 
         }
         if (point.instruction().direction().isVertical()) {
-          if (point.y() == i) {
-            edges = (edges + point.bend().value) % 4;
-          } else if (point.y() + point.instruction().direction().dy != i) {
+          if (point.y() != i && point.y() + point.instruction().direction().dy * point.instruction().meters() != i) {
             edges = (edges + 2) % 4;
             dug++;
           }
-          currentX = Math.max(currentX, point.x());
+          currentX = Math.max(currentX, point.x() + 1);
         } else if (point.instruction().direction().isHorizontal()) {
-          dug += point.instruction().meters();
-          edges = (edges + point.bend().value) % 4;
-          currentX = Math.max(currentX, point.x() + point.instruction().direction().dx + point.instruction().meters());
+          dug += point.instruction().meters() + 1;
+          edges = (edges + point.bendBefore().value + point.bendAfter().value) % 4;
+          currentX = Math.max(currentX, point.x() + point.instruction().direction().dx * point.instruction().meters() + 1);
         }
       }
       insideSpots += dug;
-      //if (i > 1186320) {
-      //  System.out.println(i - grid.getMinY() + " / " + grid.getHeight() + " - " + points);
-     // }
     }
 
-    //System.out.println(grid);
     System.out.println("insideSpots is " + insideSpots); 
     
     System.out.println("time taken " + (clock.millis() - startTime) + "ms");
   }
 }
-//952408144115
-//952408289936
-//952406273637
-//952406273644
-//952406273637
-//952403901002
