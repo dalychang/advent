@@ -24,3 +24,12 @@ java_binary(
         ":puzzle_lib",
     ],
 )
+
+java_binary(
+    name = "p23_v3",
+    data = glob(["*.txt"]),
+    main_class = "dev.advent.Puzzlev2",
+    runtime_deps = [
+        ":puzzle_lib",
+    ],
+)
