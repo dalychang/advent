@@ -1207,4 +1207,4 @@
 (declare-const answer Int)
 (assert (= answer (+ p0x p0y p0z)))
 (check-sat)
-(get-model)
+(get-value (answer))

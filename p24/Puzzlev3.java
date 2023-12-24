@@ -1,5 +1,6 @@
 package dev.advent;
 
+import com.microsoft.z3.*;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,7 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Puzzlev2 {
+public class Puzzlev3 {
   public record Position(long x, long y, long z) {}
   public record Velocity(long x, long y, long z) {}
   public static class Hail {
@@ -75,7 +76,7 @@ public class Puzzlev2 {
     commands.add("(declare-const answer Int)");
     commands.add("(assert (= answer (+ p0x p0y p0z)))");
     commands.add("(check-sat)");
-    commands.add("(get-value (answer))");
+    commands.add("(get-model)");
     return commands;
   }
     
@@ -95,12 +96,31 @@ public class Puzzlev2 {
           new Velocity(Long.parseLong(m.group(4)), Long.parseLong(m.group(5)), Long.parseLong(m.group(6)))));
     }
     
-    List<String> z3Commands = generateZ3Commands(hailList);
-    for (String line : z3Commands) {
-      System.out.println(line);
-    }
-    Helper.writeFile("dev_advent/p24/input2.z3", z3Commands);
+    Context ctx = new Context(new HashMap<>());
+    Solver solver = ctx.mkSolver();
+    IntExpr p0x = ctx.mkIntConst("p0x");
+    IntExpr p0y = ctx.mkIntConst("p0y");
+    IntExpr p0z = ctx.mkIntConst("p0z");
     
+    IntExpr v0x = ctx.mkIntConst("v0x");
+    IntExpr v0y = ctx.mkIntConst("v0y");
+    IntExpr v0z = ctx.mkIntConst("v0z");
+    
+    for (int i = 0; i < hailList.size(); i++) {
+      Hail hail = hailList.get(i);
+      IntExpr t = ctx.mkIntConst(String.format("t%d", i));
+      solver.add(ctx.mkEq(ctx.mkAdd(p0x, ctx.mkMul(t, v0x)), ctx.mkAdd(ctx.mkInt(hail.position().x()), ctx.mkMul(t, ctx.mkInt(hail.velocity().x())))));
+      solver.add(ctx.mkEq(ctx.mkAdd(p0y, ctx.mkMul(t, v0y)), ctx.mkAdd(ctx.mkInt(hail.position().y()), ctx.mkMul(t, ctx.mkInt(hail.velocity().y())))));
+      solver.add(ctx.mkEq(ctx.mkAdd(p0z, ctx.mkMul(t, v0z)), ctx.mkAdd(ctx.mkInt(hail.position().z()), ctx.mkMul(t, ctx.mkInt(hail.velocity().z())))));
+    }
+    
+    IntExpr answer = ctx.mkIntConst("answer");
+    solver.add(ctx.mkEq(answer, ctx.mkAdd(p0x, p0y, p0z)));
+    Status status = solver.check();
+    System.out.println("status is " + status);
+    Model model = solver.getModel();
+    System.out.println("answer is " + model.getConstInterp(answer));
+        
     System.out.println("time taken " + (clock.millis() - startTime) + "ms");
   }
 }

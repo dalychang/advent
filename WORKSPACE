@@ -37,6 +37,8 @@ maven_install(
         "com.google.code.gson:gson:2.10.1",
         "com.google.guava:guava:31.1-jre",
         "com.google.inject:guice:7.0.0",
+        "com.microsoft.z3:java-jar:jar:4.11.2",
+        "com.microsoft.z3:libz3.java.linux:jar:4.11.2",
         "com.opencsv:opencsv:5.7.1",
         "jakarta.annotation:jakarta.annotation-api:2.1.1",
         "org.apache.commons:commons-lang3:jar:3.12.0",
@@ -45,6 +47,7 @@ maven_install(
     repositories = [
         "https://repo1.maven.org/maven2",
         "https://repo.maven.apache.org/maven2",
+        "https://artifacts.itemis.cloud/repository/maven-mps/",
     ],
 )
 
