@@ -1,0 +1,16 @@
+graph { 
+layout = sfdp
+jqt -- {rhn xhk nvd} [label="\E"];
+rsh -- {frs pzl lsr} [label="\E"];
+xhk -- {hfx} [label="\E"];
+cmg -- {qnr nvd lhk bvb} [label="\E"];
+rhn -- {xhk bvb hfx} [label="\E"];
+bvb -- {xhk hfx} [label="\E"];
+pzl -- {lsr hfx nvd} [label="\E"];
+qnr -- {nvd} [label="\E"];
+ntq -- {jqt hfx bvb xhk} [label="\E"];
+nvd -- {lhk} [label="\E"];
+lsr -- {lhk} [label="\E"];
+rzs -- {qnr cmg lsr rsh} [label="\E"];
+frs -- {qnr lhk lsr} [label="\E"];
+}

@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Puzzle {
+public class Puzzlev2 {
   private static final String COMMA_SEPARATOR = ", ";
   
   public record Path(String label, String location, List<String> places) {}
@@ -169,98 +169,13 @@ public class Puzzle {
     }
     return edges;
   }
-  
-  public static long calculateDeltaCost(Map<Component, Long> costMap1, Map<Component, Long> costMap2) {
-    long cost = 0L;
-    long impacted = 0L;
-    for (Component c : costMap1.keySet()) {
-      long absCost = Math.abs(costMap1.get(c) - costMap2.get(c));
-      cost += (absCost * absCost);
-      if (absCost > 0) {
-        impacted++;
-      }
-    }
-    return cost;
-  }
-  
-  public static EdgeCostPair getBestEdgeCostPair(ExecutorService executorService, Map<String, Component> componentMap, Component startComponent, Set<Edge> edges) {
-    Map<Component, Long> baseCostMap = findCostMap(componentMap, startComponent, null);
-    List<Future<EdgeCostPair>> futures = new ArrayList<>();
-    for (Edge edge : edges) {
-      futures.add(executorService.submit(new Callable<EdgeCostPair>() {
-        @Override
-          public EdgeCostPair call() {
-            Map<Component, Long> edgeCostMap = findCostMap(componentMap, startComponent, edge);
-            EdgeCostPair ecp = new EdgeCostPair(edge, calculateDeltaCost(baseCostMap, edgeCostMap));
-            return ecp;
-          }
-      }));
-    }
 
-    PriorityQueue<EdgeCostPair> edgeCostPairs = new PriorityQueue<>();
-    for (Future<EdgeCostPair> future : futures) {
-      try {
-        edgeCostPairs.add(future.get());
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
-    
-    EdgeCostPair targetEdgeCostPair = edgeCostPairs.poll();
-    for (int i = 0; i < 5; i++)
-      System.out.println("\t " + edgeCostPairs.poll());
-    return targetEdgeCostPair;
-  }
-  
-  public static EdgeCostPair getBestEdgeCostPairMulti(ExecutorService executorService, Map<String, Component> componentMap, Component startComponent, Set<Edge> edges) {
-    List<Future<Map<Edge, Long>>> futures = new ArrayList<>();
-    for (Component cStart : componentMap.values()) {
-      futures.add(executorService.submit(new Callable<Map<Edge, Long>>() {
-        @Override
-          public Map<Edge, Long> call() {
-            Map<Component, Long> baseCostMap = findCostMap(componentMap, cStart, null);
-            Map<Edge, Long> edgeDeltaCostMap = new HashMap<>();
-            for (Edge edge : edges) {
-              Map<Component, Long> edgeCostMap = findCostMap(componentMap, startComponent, edge);
-              edgeDeltaCostMap.put(edge, calculateDeltaCost(baseCostMap, edgeCostMap));
-            }
-            return edgeDeltaCostMap;
-          }
-      }));
-    }
-
-    Map<Edge, Long> totalEdgeDeltaCostMap = new HashMap<>();
-    for (Edge edge: edges) {
-      totalEdgeDeltaCostMap.put(edge, 0L);
-    }
-    for (Future<Map<Edge, Long>> future : futures) {
-      try {
-        Map<Edge, Long> edgeDeltaCostMap = future.get();
-        for (Edge edge : edgeDeltaCostMap.keySet()) {
-          totalEdgeDeltaCostMap.put(edge, edgeDeltaCostMap.get(edge) + totalEdgeDeltaCostMap.get(edge));
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
-
-    PriorityQueue<EdgeCostPair> edgeCostPairs = new PriorityQueue<>();    
-    for (Edge edge : totalEdgeDeltaCostMap.keySet()) {
-      edgeCostPairs.add(new EdgeCostPair(edge, totalEdgeDeltaCostMap.get(edge)));
-    }
-    
-    EdgeCostPair targetEdgeCostPair = edgeCostPairs.poll();
-    for (int i = 0; i < 5; i++)
-      System.out.println("\t " + edgeCostPairs.poll());
-    return targetEdgeCostPair;
-  }
     
   public static void main(String[] args) throws Exception {
-    final List<String> lines = Helper.loadFile("dev_advent/p25/input.txt");
+    final List<String> lines = Helper.loadFile("dev_advent/p25/input2.txt");
     Clock clock = Clock.systemUTC();
     long startTime = clock.millis();
     
-    ExecutorService executorService = Executors.newFixedThreadPool(30);
     Pattern pattern = Pattern.compile("^(\\w+): (.*)$");
     Map<String, Component> componentMap = new HashMap<>();
     for (String line : lines) {
@@ -284,44 +199,34 @@ public class Puzzle {
     List<String> componentNames = new ArrayList<>(componentMap.keySet());
     Set<Edge> edges = buildEdges(componentNames);
     Component startComponent = componentMap.get(componentNames.get(2));  // Randomly picked.
-
     
-    List<Edge> candidateEdges = new ArrayList<>();
+    // Read off of output.svg
+    List<Edge> candidateEdges = List.of(
+      makeEdge("rsm", "bvc"),
+      makeEdge("bkm", "ldk"),
+      makeEdge("pgh", "zmq")
+    );
     Set<Component> componentsToCount = new HashSet<>();
-    for (int i = 0; i < 3; i++) {
-      long fTime = clock.millis();
-      EdgeCostPair ecp = getBestEdgeCostPairMulti(executorService, componentMap, startComponent, edges);
-      System.out.println(i + ": " + ecp);
-      Edge edge = ecp.edge();
-      candidateEdges.add(edge);
-      edges.remove(edge);
-      
+    for (Edge edge : candidateEdges) {
       Component c1 = componentMap.get(edge.c1());
       Component c2 = componentMap.get(edge.c2());
       c1.remove(c2);
       c2.remove(c1);
       componentsToCount.add(c1);
       componentsToCount.add(c2);
-      System.out.println(String.format("getBestEdgeCostPairMulti(%d) time = %dms", i, (clock.millis() - fTime)));
     }      
-
     
-    Map<Component, Long> clusterCountMap = new HashMap<>();
+    Set<Long> numbers = new HashSet<>();
     for (Component c : componentsToCount) {
-      clusterCountMap.put(c, countCluster(componentMap, c));
+      numbers.add(countCluster(componentMap, c));
     }
     
-    System.out.println(clusterCountMap);
-    
-    //Map<Component, Long> baseCostMap = findCostMap(Map<String, Component> componentMap, Component start, Edge removedEdge);
-    
-    long answer = componentMap.values().stream()
-        .map(Puzzle::calculate)
-        .reduce(0L, Long::sum);
+    long answer = numbers.stream()
+        .reduce(1L, (a, b) -> a * b);
         
-    System.out.println("answer is " + answer);     
+    System.out.println("answer is " + answer);  
     
-    executorService.shutdown();
+    
     System.out.println("time taken " + (clock.millis() - startTime) + "ms");
   }
 }
