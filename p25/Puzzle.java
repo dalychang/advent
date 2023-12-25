@@ -131,6 +131,9 @@ public class Puzzle {
     Set<Component> pending = new HashSet<>();
     pending.add(start);
     Map<Component, Long> costs = new HashMap<>();
+    for (Component c : componentMap.values()) {
+      costs.put(c, -1L);
+    }
     costs.put(start, 0L);
     
     long cost = 0;
@@ -140,7 +143,7 @@ public class Puzzle {
       cost++;
       for (Component c : toProcess) {
         for (Component d : c.getConnections()) {
-          if (costs.containsKey(d)) continue;
+          if (costs.get(d) >= 0L) continue;
           if (removedEdge != null && removedEdge.matches(c, d)) {
             continue;
           }
@@ -256,7 +259,7 @@ public class Puzzle {
   }
     
   public static void main(String[] args) throws Exception {
-    final List<String> lines = Helper.loadFile("dev_advent/p25/input.txt");
+    final List<String> lines = Helper.loadFile("dev_advent/p25/input2.txt");
     Clock clock = Clock.systemUTC();
     long startTime = clock.millis();
     
@@ -283,14 +286,19 @@ public class Puzzle {
     
     List<String> componentNames = new ArrayList<>(componentMap.keySet());
     Set<Edge> edges = buildEdges(componentNames);
-    Component startComponent = componentMap.get(componentNames.get(2));  // Randomly picked.
-
+    
+    Component startComponent = componentMap.get(componentNames.get(0));
+    for (Component c : componentMap.values()) {
+      if (c.getConnections().size() > startComponent.getConnections().size()) {
+        startComponent = c;
+      }
+    }
     
     List<Edge> candidateEdges = new ArrayList<>();
     Set<Component> componentsToCount = new HashSet<>();
     for (int i = 0; i < 3; i++) {
       long fTime = clock.millis();
-      EdgeCostPair ecp = getBestEdgeCostPairMulti(executorService, componentMap, startComponent, edges);
+      EdgeCostPair ecp = getBestEdgeCostPair(executorService, componentMap, startComponent, edges);
       System.out.println(i + ": " + ecp);
       Edge edge = ecp.edge();
       candidateEdges.add(edge);
@@ -302,7 +310,8 @@ public class Puzzle {
       c2.remove(c1);
       componentsToCount.add(c1);
       componentsToCount.add(c2);
-      System.out.println(String.format("getBestEdgeCostPairMulti(%d) time = %dms", i, (clock.millis() - fTime)));
+      startComponent = c1;
+      System.out.println(String.format("getBestEdgeCostPair(%d) time = %dms", i, (clock.millis() - fTime)));
     }      
 
     
@@ -315,11 +324,15 @@ public class Puzzle {
     
     //Map<Component, Long> baseCostMap = findCostMap(Map<String, Component> componentMap, Component start, Edge removedEdge);
     
-    long answer = componentMap.values().stream()
-        .map(Puzzle::calculate)
-        .reduce(0L, Long::sum);
+    Set<Long> numbers = new HashSet<>();
+    for (long number : clusterCountMap.values()) {
+      numbers.add(number);
+    }
+    
+    long answer = numbers.stream()
+        .reduce(1L, (a, b) -> a * b);
         
-    System.out.println("answer is " + answer);     
+    System.out.println("\nanswer is " + answer);      
     
     executorService.shutdown();
     System.out.println("time taken " + (clock.millis() - startTime) + "ms");
